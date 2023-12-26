@@ -1,11 +1,13 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using System.Linq.Expressions;
+using System.Linq;
 using UdemyWebApi.Dal;
 using UdemyWebApi.DTOs.BaseDTOs;
 using UdemyWebApi.Repositories.Interfaces;
 
 namespace UdemyWebApi.Repositories.Abstractions
 {
-    public class Repository<T> : IRepository<T> where T : BaseEntityDTOs, new()
+    public class Repository<T> : IRepository<T> where T : BaseAuditableEntityDto, new()
     {
         private readonly AppDbContext _dbContext;
         private readonly DbSet<T> _table;
@@ -24,20 +26,34 @@ namespace UdemyWebApi.Repositories.Abstractions
         public void DeleteAsync(int id)
         {
             T entity = _table.Find(id);
-            _table.Remove(entity);
-            _dbContext.SaveChanges();
+            entity.IsDeleted = true;
+             _dbContext.SaveChanges();
+
+            
 
         }
 
-        public async Task<IQueryable<T>> GetAllAsync()
+        public async Task<IQueryable<T>> GetAllAsync(Expression<Func<T, bool>>? expression = null, params string[] includes)
         {
-            IQueryable<T> values = _table;
-            return values;
+            IQueryable<T> query = _table.Where(i=>i.IsDeleted==false);
+            if (expression is not null)
+            {
+                query = query.Where(expression);
+            }
+            if (includes is not null)
+            {
+                for (int i = 0; i < includes.Length; i++)
+                {
+                    query.Include(includes[i]);
+                }
+            }
+
+            return query;
         }
 
         public async Task<T> GetByIdAsync(int id)
         {
-            T entity = _table.Find(id);
+            T entity = _table.Where(i=>i.IsDeleted==false).FirstOrDefault(i=>i.Id==id);
             
             return entity;
         }

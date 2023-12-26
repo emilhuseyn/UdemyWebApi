@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using UdemyWebApi.Dal;
+using UdemyWebApi.Mapper;
 using UdemyWebApi.Repositories.Abstractions;
 using UdemyWebApi.Repositories.Interfaces;
 using UdemyWebApi.Services.Abstractions;
@@ -10,6 +11,8 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddScoped<ICategoryIRepository, CategoryRepository>();
 builder.Services.AddScoped<ICategoryService,CategoryService >();
+builder.Services.AddAutoMapper(typeof(MapperProfile).Assembly);
+
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();

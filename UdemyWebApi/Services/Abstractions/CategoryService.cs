@@ -1,4 +1,7 @@
-﻿using UdemyWebApi.Dal;
+﻿using AutoMapper;
+using Microsoft.EntityFrameworkCore;
+using System.Linq.Expressions;
+using UdemyWebApi.Dal;
 using UdemyWebApi.DTOs.CategoryDTOs;
 using UdemyWebApi.Entities;
 using UdemyWebApi.Repositories.Interfaces;
@@ -11,13 +14,14 @@ namespace UdemyWebApi.Services.Abstractions
         private readonly ICategoryIRepository _repository;
         
         private readonly AppDbContext _dbContext;
+        private readonly IMapper _mapper;
 
-
-        public CategoryService(ICategoryIRepository repository, AppDbContext dbContext)
+        public CategoryService(ICategoryIRepository repository, AppDbContext dbContext, IMapper mapper)
         {
             _repository = repository;
-            
+
             _dbContext = dbContext;
+            _mapper = mapper;
         }
 
         public async void CreateAsync(CategoryCreateDto entity)
@@ -25,7 +29,8 @@ namespace UdemyWebApi.Services.Abstractions
 
             Category category = new Category();
             category.Name = entity.Title;
-            if(entity.CategoryId is not null)category.CategoryId = entity.CategoryId;
+            Category? category1= _dbContext.Categories.Find(entity.CategoryId);
+            if(category1 is not null) category.CategoryId = entity.CategoryId;
             category.IsDeleted = false;
             category.CreatedAt = DateTime.Now;
             
@@ -35,13 +40,21 @@ namespace UdemyWebApi.Services.Abstractions
 
         public void DeleteAsync(int id)
         {
-            
             _repository.DeleteAsync(id);
+           
+                foreach (var item in _dbContext.Categories.Where(c => c.CategoryId == id))
+                {
+                    item.IsDeleted=true;
+                    
+                }
+            
+            _dbContext.SaveChanges();
         }
 
-        public async Task<IQueryable<Category>> GetAllAsync()
+        public async Task<ICollection<CategoryGetDto>> GetAllAsync(Expression<Func<Category, bool>>? expression = null, Expression<Func<Category, object>>? expressionOrder = null, bool isDescending = false, params string[] includes)
         {
-            return await _repository.GetAllAsync();
+            var result = await _repository.GetAllAsync();
+            return _mapper.Map<ICollection<CategoryGetDto>>(result.Include(x => x.Children));
         }
 
         public async Task<Category> GetByIdAsync(int id)
@@ -57,9 +70,13 @@ namespace UdemyWebApi.Services.Abstractions
 
         public async void UpdateAsync(UpdateCategoryDto entity )
         {
-            Category category = await _repository.GetByIdAsync(entity.Id);
+            Category category = await _dbContext.Categories.FindAsync(entity.Id);
+
+            
             category.Name = entity.Title;
-            if(entity.CategoryId is not null) category.CategoryId = entity.CategoryId;
+            Category? category1 = _dbContext.Categories.Find(entity.CategoryId);
+            if (category1 is not null) category.CategoryId = entity.CategoryId;
+            category.IsDeleted = false;
             category.UpdatedAt = DateTime.Now;
             _repository.UpdateAsync(category);
         }
